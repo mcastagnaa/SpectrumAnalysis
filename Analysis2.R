@@ -1,6 +1,8 @@
 library(PerformanceAnalytics)
 library(Hmisc)
 
+
+
 rownames(CombByDate) <- CombByDate$Date
 RetSet <- subset(CombByDate, select = c(Spec3Ret,
                                         Spec4Ret,

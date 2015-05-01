@@ -1,3 +1,5 @@
+rm(list =ls(all=TRUE))
+
 FundPrices <- read.csv("CitiPrices.csv", header = TRUE)
 FundPrices$Date <- as.Date(FundPrices$Date, "%d/%m/%Y")
 str(FundPrices)
@@ -33,6 +35,8 @@ FundPRes$Spec8Ret <- c(NA, FundPRes$Mid.SKSPEC8[2:n]/FundPRes$Mid.SKSPEC8[1:n-1]
 CombByDate <-merge(FundPRes, SectorRet, by = "Date", all = FALSE)
 head(CombByDate)
 
+.pardefault <- par()
+
 par(mfrow = c(2,3), mar= c(3,3,2,1))
 boxplot(CombByDate$Spec3Ret, main = "Spectrum 3")
 boxplot(CombByDate$Spec4Ret, main = "Spectrum 4")
@@ -47,3 +51,4 @@ boxplot(CombByDate$IMA60Ret, main = "IMA mix 35-60")
 boxplot(CombByDate$IMA85Ret, main = "IMA mix 60-85")
 boxplot(CombByDate$IMAfRet, main = "IMA Flex")
 
+par(.pardefault)
