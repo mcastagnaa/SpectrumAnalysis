@@ -1,0 +1,16 @@
+{
+    "contents" : "library(PerformanceAnalytics)\nlibrary(Hmisc)\n\nrownames(CombByDate) <- CombByDate$Date\nRetSet <- subset(CombByDate, select = c(Spec3Ret,\n                                        Spec4Ret,\n                                        Spec5Ret,\n                                        Spec6Ret,\n                                        Spec7Ret,\n                                        Spec8Ret,\n                                        IMA35Ret,\n                                        IMA60Ret,\n                                        IMA85Ret,\n                                        IMAfRet\n                                        ))\n\nchart.Correlation(RetSet, histogram = TRUE)\n\n\nchart.CumReturns(RetSet,\n                 wealth.index = TRUE,\n                 legend.loc = \"topleft\",\n                 begin = \"first\",\n                 main=\"Value of $1\",\n                 ylab = \"absolute returns\",\n                 xlab = NULL, \n                 date.format = \"%b/%y\")\n\nchart.Boxplot(RetSet, sort.by = \"variance\")\n\nchart.RiskReturnScatter(RetSet, \n                        add.boxplot = TRUE, \n                        sharpe.ratio = NULL)\n\nresult <- t(table.Stats(RetSet[, , drop = F]))\ntextplot(format.df(result, na.blank=TRUE, numeric.dollar=FALSE, cdec=c(rep(1,2),rep(3,14))),\n         rmar = 0.8, cmar = 1.5,  max.cex=.9, halign = \"center\", valign = \"top\",\n         row.valign=\"center\", wrap.rownames=10, wrap.colnames=10, mar = c(0,0,3,0)+0.1)\ntitle(main=\"Statistics for relative returns\")\n\ntable.DownsideRisk(RawData.r[,1:6, drop=F], Rf = RawData.r[,7, drop=F])\n\ntable.Drawdowns(RawData.r[,1, drop=F])\n\n",
+    "created" : 1430487003945.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1356877739",
+    "id" : "EDBAF166",
+    "lastKnownWriteTime" : 1430489581,
+    "path" : "G:/GitHub/SpectrumAnalysis/Analysis2.R",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "source_on_save" : false,
+    "type" : "r_source"
+}
