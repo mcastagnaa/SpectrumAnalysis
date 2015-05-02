@@ -10,10 +10,10 @@ RetSet <- subset(CombByDate, select = c(Spec3Ret,
                                         Spec6Ret,
                                         Spec7Ret,
                                         Spec8Ret,
-                                        IMA35Ret,
-                                        IMA60Ret,
-                                        IMA85Ret,
-                                        IMAfRet
+                                        IMA35Avg,
+                                        IMA60Avg,
+                                        IMA85Avg,
+                                        IMAfAvg
                                         ))
 
 chart.Correlation(RetSet, histogram = TRUE)
