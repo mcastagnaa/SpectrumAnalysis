@@ -1,10 +1,10 @@
 library(PerformanceAnalytics)
 library(Hmisc)
 
-
-
-rownames(CombByDate) <- CombByDate$Date
-RetSet <- subset(CombByDate, select = c(Spec3Ret,
+RetSet <- subset(CombByDate,
+                 Date > as.Date("2014-04-30") & 
+                   Date <= as.Date("2015-04-30"),
+                 select = c(Spec3Ret,
                                         Spec4Ret,
                                         Spec5Ret,
                                         Spec6Ret,
@@ -18,7 +18,6 @@ RetSet <- subset(CombByDate, select = c(Spec3Ret,
 
 chart.Correlation(RetSet, histogram = TRUE)
 
-
 chart.CumReturns(RetSet,
                  wealth.index = TRUE,
                  legend.loc = "topleft",
@@ -31,8 +30,7 @@ chart.CumReturns(RetSet,
 chart.Boxplot(RetSet, sort.by = "variance")
 
 chart.RiskReturnScatter(RetSet, 
-                        add.boxplot = TRUE, 
-                        sharpe.ratio = NULL)
+                        add.boxplot = TRUE)
 
 result <- t(table.Stats(RetSet[, , drop = F]))
 textplot(format.df(result, na.blank=TRUE, numeric.dollar=FALSE, cdec=c(rep(1,2),rep(3,14))),
