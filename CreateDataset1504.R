@@ -34,6 +34,7 @@ FundPRes$Spec8Ret <- c(NA, FundPRes$Mid.SKSPEC8[2:n]/FundPRes$Mid.SKSPEC8[1:n-1]
 
 CombByDate <-merge(FundPRes, SectorRet, by = "Date", all = FALSE)
 rownames(CombByDate) <- CombByDate$Date
+save(CombByDate, file="CombByDate.Rda")
 
 firstDate <- min(CombByDate$Date)
 lastDate <- max(CombByDate$Date)

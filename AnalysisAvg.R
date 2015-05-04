@@ -5,18 +5,20 @@ RetSet <- subset(CombByDate,
                  Date > as.Date("2014-04-30") & 
                    Date <= as.Date("2015-04-30"),
                  select = c(Spec3Ret,
-                                        Spec4Ret,
-                                        Spec5Ret,
-                                        Spec6Ret,
-                                        Spec7Ret,
-                                        Spec8Ret,
-                                        IMA35Avg,
-                                        IMA60Avg,
-                                        IMA85Avg,
-                                        IMAfAvg
-                                        ))
+                            Spec4Ret,
+                            Spec5Ret,
+                            Spec6Ret,
+                            Spec7Ret,
+                            Spec8Ret
+                            ))
+# ,
+#                                         IMA35Avg,
+#                                         IMA60Avg,
+#                                         IMA85Avg,
+#                                         IMAfAvg
+#                                         ))
 
-chart.Correlation(RetSet, histogram = TRUE)
+#chart.Correlation(RetSet, histogram = TRUE)
 
 chart.CumReturns(RetSet,
                  wealth.index = TRUE,
