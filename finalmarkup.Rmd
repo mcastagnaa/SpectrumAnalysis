@@ -22,20 +22,20 @@ require(PerformanceAnalytics)
 ```
 
 # The dataset
-The raw data for the relevant sectors \footnote{The sectors considered where *IA Mix 0-35 Shares*, *IA Mix 20-60 Shares*, *IA Mix 40-85 Shares*, *IA Mix flex*} were sourced from \textit{Morningstar} capturing the Median return and the Average returns with a daily frequency.
+The raw data for the relevant sectors\footnote{The sectors considered where \textit{IA Mix 0-35 Shares}, \textit{IA Mix 20-60 Shares}, \textit{IA Mix 40-85 Shares}, \textit{IA Mix flex}} were sourced from \textit{Morningstar} capturing the median return and the average returns with a daily frequency.
 
 The difference between the median returns and the average ones are substantial by construction. While the average returns are built daily by Morningstar on an unbiased basis (in terms of survivorship bias), the median ones are calculated manually by the \textit{OMGI Investment Risk and Performance Team} filtering each sector as of today and going back in time calculating each period median returns: the result is a time series of survivorship-biased returns.
 
-The filter admits only the oldest share class for each product (excluding insurance funds) using (as an example for the \textit{IA Mix 0-35} sector) the following definition:
+The filter admits only the oldest share class for each sector (excluding insurance funds) using (as an example for the \textit{IA Mix 0-35} sector) the following sintax:
 ```
 "SUPER_CLIENT:/INDEX_LISTS/PEER_GROUPS/Sector - IMA - Mixed Investment 0-35 Shares - PTX"
 ```
 The sector averages uses the IA Methodology of the daily average returns of the most expensive share class for each fund.
 
-Specturm funds prices are taken as delivered by Citi to OMGI. The Specturm prices are published by class on a Bid/Mid/Offer basis. For this exercise the Mid price was used for the OA class.
-Mid price seems to be the logical option in order to avoid any excess volatility due to prices swings; the OA class has the longest time series (TS).
+Spectrum funds prices are taken as delivered by Citi to OMGI. The Spectrum prices are available by class on a Bid/Mid/Offer basis. For this exercise the Mid price was used for the OA class.
+Using a specific quote instead of the official one (where the quote might be subject to swings between bid and offer) seems to be the logical option in order to avoid any excess volatility; the OA class was used given it has the longest time series (TS).
 
-From the Prices TS the returns TSs are built for the Spectrum funds using the following sintax computing simple returns:
+From the prices TS the returns TSs are built for the Spectrum funds using the following sintax (i.e. computing simple returns):
 
 ```r
 FundPRes$Spec3Ret <- c(NA, FundPRes$Mid.SKSPEC3[2:n]/FundPRes$Mid.SKSPEC3[1:n-1]-1)
@@ -82,6 +82,8 @@ chart.CumReturns(RetSet,
                  colorset = greenmono)
 ```
 
+
+
 ```{r SectorAvgCum, echo=FALSE}
 RetSet <- subset(CombByDate,
                  Date > firstDate & 
@@ -123,7 +125,7 @@ chart.CumReturns(RetSet,
                  colorset = redmono)
 ```
 \newpage
-Inspection of the entire dataset sorted by variance (check for outliers).
+Inspection of the entire dataset sorted by variance doesn't show any particular outlier.
 
 ```{r dataBoxplot, echo=FALSE, fig.align='center'}
 RetSet <- subset(CombByDate,
@@ -152,19 +154,18 @@ The first panel (Panel 1) provides evidence of where in the risk/reward space th
 
 Four datasets are considered (from top to bottom, left to right) where different start/end dates have been used:
 \begin{enumerate}
-  \item full three year set
-  \item last 12 month
+  \item Full three year set
+  \item Last 12 month
   \item Year to date to end of March
   \item Year to date to end of April (to make sure we appreciate the effect of the last couple of weeks)
 \end{enumerate}
 
-The evidence shows the fund range under the sector medians for the first three charts while the improvement during the last month is cleary visible in the fourth.
-In the YtD chart to the last data point, the fund range is aligned to the sector median risk/return points.
+The evidence shows the fund range well under the sector medians for the first three charts while the improvement during the last month is cleary visible in the fourth: for the year to date chart to the last data point, the fund range is aligned to the sector median risk/return points.
 
 # Risk/Return analysis vs. sectors averages
-The same logic is applied using sectors averages (Panel 2). In this case we believe the reference should make the comparison less aggressive. 
-By using the sector average returns we compare the funds with the sectors statistics incuding those funds that were closed out (or moved to a different sector) during the period. It also true, as detailed above, the averages are composed with the most expensive share classes for each product. In all likelihood you would expect those returns to be lower than the one obtained with the survivorship-biased (older share class) medians.
-That should be particularly helpful over the longer horizon (3 years) limiting the distance of the Spectrum range vs. the peer group.
+The same logic is applied using sectors averages (Panel 2). In this case we believe the reference should make the comparison less aggressive\footnote{I mean the reference is easier to match, particularly over the longer horizons}. 
+By using the sector average returns, we compare the funds with the sectors statistics incuding those funds that were closed out (or moved to a different sector) during the period. On top of this, as detailed above, the averages are calculated using the most expensive share classes for each product. 
+In all likelihood you would expect average returns to be less good in the risk/reward space than the one obtained with the survivorship-biased (older share class) medians.
 
 The chart below seems to confirm that hypothesis.
 
@@ -190,8 +191,10 @@ chart.RiskReturnScatter(RetSetSec,
 ```
 
 # Conclusions
-Last month was a good month for the Spectrum range helping the products aligning themselves with the average products in the sector.
-Over the long period the range is still behind that target.
+Last month was a good month for the Spectrum range helping the products aligning themselves with the average/median products in the sector.
+Over the longer periods the range is still behind that target. The comparison with sector averages (unbiased) offers a better picture as expected.
+
+Unfortunately \textit{OMGI Investment Risk \& Performance} wasn't able to match the evidence supplied by the desk during the most recent QIC meeting.
 \newpage
 \begin{landscape}
 \textbf{Panel 1: Spectrum funds vs. Sector medians}
