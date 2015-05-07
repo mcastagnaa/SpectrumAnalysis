@@ -1,12 +1,13 @@
 ---
 title: "Spectrum range risk/return analysis"
-author: "Matteo Castagna" 
+author: "Matteo Castagna"
 date: "May 2015"
-output: 
+output:
   pdf_document:
-    number_sections: true
     includes:
       in_header: pdflscape.tex
+    number_sections: yes
+  word_document: default
 ---
 
 # Introduction
