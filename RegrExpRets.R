@@ -70,6 +70,7 @@ RollEqExpAv$Date <- as.Date(RollEqExpAv$Date)
 ## RollEqExAv for equity exposure
 
 ExpRollMelt <- melt(RollFuExpAv, id.var = c("Date"), value.name = "Exposure")
+ExpRollMelt$variable <- substr(ExpRollMelt$variable, 1, 5)
 
 ###########################
 
@@ -95,8 +96,9 @@ colnames(RollRetSd)[1] <- "Date"
 RollRetSd$Date <- as.Date(RollRetSd$Date)
 
 RetSdRollMelt <- melt(RollRetSd, id.var=c("Date"), value.name = "SdRet")
+RetSdRollMelt$variable <- substr(RetSdRollMelt$variable, 1, 5)
 
 ############
 
-RegSet <- merge(ExpRollMelt, RetSdRollMelt, by = "Date")
+RegSet <- merge(ExpRollMelt, RetSdRollMelt, by = c("Date", "variable")
                  
