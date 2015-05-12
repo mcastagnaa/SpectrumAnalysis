@@ -1,6 +1,7 @@
 library(reshape2)
 library(PerformanceAnalytics)
 
+
 rm(list =ls(all=TRUE))
 
 load("SpecExpSet.Rda")
@@ -24,6 +25,7 @@ names(FundsExp) <- c("Date",
                      "Spec6EqFuExp",
                      "Spec7EqFuExp",
                      "Spec8EqFuExp")
+FundsExp <- FundsExp[complete.cases(FundsExp),]
 RollFuExpAv <- data.frame(cbind(FundsExp$Date, 
                               rollapplyr(FundsExp[c("Spec3EqFuExp", 
                                                    "Spec4EqFuExp", 
@@ -52,6 +54,8 @@ names(EquityExp) <- c("Date",
                       "Spec6EqExp",
                       "Spec7EqExp",
                       "Spec8EqExp")
+EquityExp <- FundsExp[complete.cases(EquityExp),]
+
 RollEqExpAv <- data.frame(cbind(EquityExp$Date, 
                                 rollapplyr(EquityExp[c("Spec3EqExp", 
                                                       "Spec4EqExp", 
@@ -80,7 +84,8 @@ Returns <- subset(CombByDate, select = c(Date,
                                          Spec5Ret,
                                          Spec6Ret,
                                          Spec7Ret,
-                                         Spec8Ret)
+                                         Spec8Ret,
+                                         VIX)
 )
 
 RollRetSd <- data.frame(cbind(Returns$Date, 
@@ -100,5 +105,15 @@ RetSdRollMelt$variable <- substr(RetSdRollMelt$variable, 1, 5)
 
 ############
 
-RegSet <- merge(ExpRollMelt, RetSdRollMelt, by = c("Date", "variable")
-                 
+VIXdf <- data.frame(cbind(Returns$Date, 
+                              rollapplyr(Returns[c("VIX")], 
+                                         RollingObs, mean, fill=NA)))
+colnames(VIXdf)[1] <- "Date"
+
+VIXdf$Date <- as.Date(VIXdf$Date)
+
+
+############
+
+RegSet <- merge(ExpRollMelt, RetSdRollMelt, by = c("Date", "variable"))
+RegSet <- merge(RegSet, VIXdf, by = "Date")

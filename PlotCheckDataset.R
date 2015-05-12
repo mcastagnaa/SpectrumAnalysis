@@ -22,3 +22,6 @@ boxplot(CombByDate$IMAfMed, main = "IMA avg Flex")
 
 
 par(.pardefault)
+
+boxplot(CombByDate$VIX, main = "VIX")
+plot(VIX ~ Date, data = CombByDate, type = "l")

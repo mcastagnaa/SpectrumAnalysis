@@ -6,6 +6,11 @@ FundPrices$Date <- as.Date(FundPrices$Date, "%d/%m/%Y")
 SectorRet <- read.csv("IMAreturns1504.csv", header = TRUE)
 SectorRet$Date <- as.Date(SectorRet$Date, "%d-%b-%y")
 
+VixLevels <-  read.csv("VIX.csv", header = TRUE)
+VixLevels$VIX <- VixLevels$VIX/100
+VixLevels$Date <- as.Date(VixLevels$Date, "%d/%m/%Y")
+
+
 #################################################################
 # Sector returns in percentage terms
 
@@ -33,6 +38,8 @@ FundPRes$Spec8Ret <- c(NA, FundPRes$Mid.SKSPEC8[2:n]/FundPRes$Mid.SKSPEC8[1:n-1]
 
 
 CombByDate <-merge(FundPRes, SectorRet, by = "Date", all = FALSE)
+CombByDate <-merge(CombByDate, VixLevels, by = "Date", all = FALSE)
+
 rownames(CombByDate) <- CombByDate$Date
 save(CombByDate, file="CombByDate.Rda")
 
