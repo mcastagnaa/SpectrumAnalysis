@@ -1,0 +1,283 @@
+---
+title: "Spectrum range volatility  
+and exposure analysis"
+author: "Matteo Castagna"
+date: "May 2015"
+output:
+  pdf_document:
+    includes:
+      in_header: pdflscape.tex
+    number_sections: yes
+  word_document: default
+---
+
+# Introduction
+This added work explores the relationship between the differnt funds allocation in the Spectrum range and the volatility of returns computed using the mid price official quote.
+The underlying dataset is the same as the previous job; the funds type allocation is collected from the Vivaldi SQL database directly via a standard query over an ODBC channel. 
+In order to perform those queries reading rights on the Vivaldi database are needed.
+The resulting dataset is available as a \textit{.Rda} file with all the other relevant resources.
+
+The raw data and all the relevant R scripts are published on <http://www.github.com/mcastagnaa/SpectrumAnalysis> and available there for replication to anybody interested.
+This is an R Markdown document\footnote{Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.}. 
+
+The relevant R packages used (with all the relevant dependencies) are:
+
+```{r LoadPackages, message=FALSE}
+library(PerformanceAnalytics)
+library(scales)
+library(reshape2)
+library(ggplot2)
+```
+
+# The dataset
+Spectrum funds prices are taken as delivered by Citi to OMGI. The Spectrum prices are available by class on a Bid/Mid/Offer basis. For this exercise the Mid price was used for the OA class.
+Using a specific quote instead of the official one (where the quote might be subject to swings between bid and offer) seems to be the logical option in order to avoid any excess volatility; the OA class was used given it has the longest time series (TS).
+
+From the prices TS the returns TSs are built for the Spectrum funds using the following sintax (i.e. computing simple returns):
+
+```r
+########################################
+Returns - pseudo code
+########################################
+
+FundPRes$SpecXRet <- c(NA, FundPRes$Mid.SKSPECX[2:n]/FundPRes$Mid.SKSPECX[1:n-1]-1)
+... # where X is 3:8
+```
+The Spectrum funds returns and the VIX index levels\footnote{This is actually a difference vs. the same data set which was used for the previous work. The VIX index levels (a measure of the S\&P implied volatility for each day) are sourced from Bloomberg - the relevant .csv file is part of the resources.} are part of the data frame saved with name \textit{CombByDate.Rda}.
+
+The relevant funds allocation and risk allocations are obtained using the following code which stores the relevant information in a data frame saved with name \textit{SpecExpSet.Rda}.
+
+```r
+########################################
+SpecExpSet.Rda - pseudo code
+########################################
+
+library(RODBC)
+rm(list =ls(all=TRUE))
+
+channel <- odbcConnect("SQLServerVivaldi")
+SpecX <- as.data.frame(sqlQuery(channel, "EXEC spS_GetFoFTypeLoading1Y '2015 Apr 30', ID"))
+SpecX$Fund <- as.factor("SpecX")
+...
+# where X = 3:8 and ID = 126:131
+
+SpecExpSet <- rbind(Spec3, Spec4, Spec5, Spec6, Spec7, Spec8)
+SpecExpSet$DetsDate <- as.Date(SpecExpSet$DetsDate)
+
+rm(list=ls()[ls() != "SpecExpSet"])
+save(SpecExpSet, file = "SpecExpSet.Rda")
+```
+
+The two dataset are then combined to generate the data frame used for the rest of this analysis.
+```{r CreateRegSet, echo=FALSE, results ='markup'}
+rm(list =ls(all=TRUE))
+
+load("SpecExpSet.Rda")
+load("CombByDate.Rda")
+
+RollingObs <- 20
+
+FundsExp <- reshape(SpecExpSet[SpecExpSet$Calc == "NetExp" &
+                                SpecExpSet$Class =="ByFundType" &
+                                SpecExpSet$Typ == "Equity Fund" & 
+                                SpecExpSet$DetsDate != as.Date("2014-12-12"),
+                               ],  
+                    drop = c("Typ", "Class", "Calc"),
+                    idvar = c("DetsDate"),
+                    timevar = "Fund", 
+                    direction = "wide")
+names(FundsExp) <- c("Date", 
+                     "Spec3EqFuExp", 
+                     "Spec4EqFuExp", 
+                     "Spec5EqFuExp",
+                     "Spec6EqFuExp",
+                     "Spec7EqFuExp",
+                     "Spec8EqFuExp")
+FundsExp <- FundsExp[complete.cases(FundsExp),]
+RollFuExpAv <- data.frame(cbind(FundsExp$Date, 
+                              rollapplyr(FundsExp[c("Spec3EqFuExp", 
+                                                   "Spec4EqFuExp", 
+                                                   "Spec5EqFuExp", 
+                                                   "Spec6EqFuExp", 
+                                                   "Spec7EqFuExp", 
+                                                   "Spec8EqFuExp")], 
+                                         RollingObs, mean, fill=NA)))
+colnames(RollFuExpAv)[1] <- "Date"
+RollFuExpAv$Date <- as.Date(RollFuExpAv$Date)
+# 
+# 
+# EquityExp <- reshape(SpecExpSet[SpecExpSet$Calc == "NetExp" &
+#                                 SpecExpSet$Class =="BySecGroup" &
+#                                 SpecExpSet$Typ == "Equities"&
+#                                 SpecExpSet$DetsDate != as.Date("2014-12-12"),
+#                                 ],  
+#                     drop = c("Typ", "Class", "Calc"),
+#                     idvar = c("DetsDate"),
+#                     timevar = "Fund", 
+#                     direction = "wide")
+# names(EquityExp) <- c("Date", 
+#                       "Spec3EqExp", 
+#                       "Spec4EqExp", 
+#                       "Spec5EqExp",
+#                       "Spec6EqExp",
+#                       "Spec7EqExp",
+#                       "Spec8EqExp")
+# EquityExp <- FundsExp[complete.cases(EquityExp),]
+# 
+# RollEqExpAv <- data.frame(cbind(EquityExp$Date, 
+#                                 rollapplyr(EquityExp[c("Spec3EqExp", 
+#                                                       "Spec4EqExp", 
+#                                                       "Spec5EqExp", 
+#                                                       "Spec6EqExp", 
+#                                                       "Spec7EqExp", 
+#                                                       "Spec8EqExp")], 
+#                                            RollingObs, mean, fill=NA)))
+# colnames(RollEqExpAv)[1] <- "Date"
+# RollEqExpAv$Date <- as.Date(RollEqExpAv$Date)
+# 
+##########################
+# Pick the "right" exposure variable
+# RollFuExAv for equity funds exposure
+# RollEqExAv for equity exposure
+ExpRollMelt <- melt(RollFuExpAv, id.var = c("Date"), value.name = "Exposure")
+ExpRollMelt$variable <- substr(ExpRollMelt$variable, 1, 5)
+
+###########################
+Returns <- subset(CombByDate, select = c(Date,
+                                         Spec3Ret,
+                                         Spec4Ret,
+                                         Spec5Ret,
+                                         Spec6Ret,
+                                         Spec7Ret,
+                                         Spec8Ret,
+                                         VIX)
+)
+
+RollRetSd <- data.frame(cbind(Returns$Date, 
+                           rollapplyr(Returns[c("Spec3Ret", 
+                                                "Spec4Ret", 
+                                                "Spec5Ret", 
+                                                "Spec6Ret", 
+                                                "Spec7Ret", 
+                                                "Spec8Ret")], 
+                                      RollingObs, sd, fill=NA)))
+colnames(RollRetSd)[1] <- "Date"
+
+RollRetSd$Date <- as.Date(RollRetSd$Date)
+
+RetSdRollMelt <- melt(RollRetSd, id.var=c("Date"), value.name = "SdRet")
+RetSdRollMelt$variable <- substr(RetSdRollMelt$variable, 1, 5)
+
+############
+VIXdf <- data.frame(cbind(Returns$Date, 
+                              rollapplyr(Returns[c("VIX")], 
+                                         RollingObs, mean, fill=NA)))
+colnames(VIXdf)[1] <- "Date"
+VIXdf$Date <- as.Date(VIXdf$Date)
+############
+
+RegSet <- merge(ExpRollMelt, RetSdRollMelt, by = c("Date", "variable"))
+RegSet <- merge(RegSet, VIXdf, by = "Date")
+```
+Couple of notes on the dataset just created:
+\begin{enumerate}
+  \item The asset class for the funds held in each Spectrum fund is the one provided by Bloomberg;
+  \item Volatility of the Spectrum funds returns is calculated using `r RollingObs` rolling observations of daily returns (without annualizing);
+  \item The asset allocation and the VIX level is averaged over the same number of observations
+\end{enumerate}
+
+# Data inspection
+The relevant asset allocation for the different funds can be described by \textbf{panel 1}. It's quite clear that it is pretty much constant over the period observed. The relevant differences are concentrated in the percentage of equity funds and debt funds.
+
+\begin{landscape}
+\textbf{Panel 1: Spectrum funds - fund type allocation}
+```{r AASpectrum, echo=FALSE, fig.align='center', fig.width=9, fig.height=6}
+FundExpTypeSet <- SpecExpSet[SpecExpSet$Class == "ByFundType" &
+                        SpecExpSet$Calc == "NetExp" & 
+                        SpecExpSet$DetsDate != as.Date("2014-12-12"), 
+                      c("DetsDate", "Val", "Fund", "Typ")]
+rownames(FundExpTypeSet) <- NULL
+
+ggplot(data = FundExpTypeSet[complete.cases(FundExpTypeSet),] , 
+       aes(DetsDate,  Val)) + 
+  geom_area(aes(colour = Typ, fill = Typ), position = 'stack') +
+  scale_fill_brewer(palette="Greens") + 
+  scale_y_continuous(labels = percent) +
+  facet_wrap(~ Fund)
+```
+\end{landscape}
+
+Running boxplots reveals that there are no particular outliers for the rolling volatility observations and the Equity funds exposure ones. 
+
+```{r VolatilityCheck, echo=FALSE, warning=FALSE}
+RegSet$VixCut <- cut(RegSet$VIX, 3)
+
+ggplot(RetSdRollMelt, aes(x=variable, y = SdRet)) +
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  xlab("Funds")
+```
+
+```{r EquityFundsCheck, echo=FALSE, warning=FALSE}
+ggplot(ExpRollMelt, aes(x=variable, y = Exposure)) +
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
+  xlab("Funds")
+```
+
+
+# Analysis
+Without adding any state variable we have immediately a pretty good idea about what is going on:
+
+```{r plainLm, echo=FALSE, warning=FALSE, results='markup'}
+SDonEXP <- lm(SdRet ~ Exposure, data = RegSet)
+summary(SDonEXP)
+
+```
+What we have is that regressing the whole Spectrum range volatility on the equity funds exposure provides a very decent fit.
+
+This is the relevant graphical representation.
+
+```{r plainLmChart, echo=FALSE, warning=FALSE}
+ggplot(RegSet, aes(x=Exposure, y = SdRet)) + 
+  geom_smooth(method="lm") + 
+  geom_point(shape=1) + 
+  labs(x = "Eq.Funds exposure", y = "StDev of returns") +
+  ggtitle(paste("Rolling", RollingObs, "observations"))
+```
+
+What the regression results are telling us is that if we rise the allocation to equity funds by 0.1 (e.g. from 20% to 30%) the resulting standard deviation of returns increases by `r paste0(round(SDonEXP[[1]][2]*0.1*10000,1), "bps")` (daily).
+
+It is fairly obvious to think that there is also a market variable that performs a powerful effect on the resulting fund volatility. Higher market volatility will lead \textit{coeteris paribus} to a higher fund volatility.
+This is immediately visible if we split the sample by three different level of the VIX index:
+
+```{r VIXSetsplit, echo=FALSE, warning=FALSE}
+ggplot(RegSet, aes(x=Exposure, y = SdRet 
+                   , colour = factor(VixCut)
+       )) + 
+  geom_point(shape=1) +
+  labs(x = "Eq.Funds exposure", y = "StDev of returns") +
+  ggtitle(paste("Rolling", RollingObs, "observations"))
+  
+```
+
+Effectively three different lines can be drawn:
+
+```{r VIXSetsplitReg, echo=FALSE, warning=FALSE}
+ggplot(RegSet, aes(x=Exposure, y = SdRet
+                   , colour = factor(VixCut))) + 
+  geom_smooth(method="lm") + 
+  geom_point(shape=1) +
+  labs(x = "Eq.Funds exposure", y = "StDev of returns") +
+  ggtitle(paste("Rolling", RollingObs, "observations"))
+```
+
+Running again a linear regression and adding the VIX level as explanatory variable greately enhance the amount of Spectrum volatility of volatility explained:
+
+```{r VIXLm, echo=FALSE, warning=FALSE, results='markup'}
+SDonEXP <- lm(SdRet ~ Exposure + VIX, data = RegSet)
+summary(SDonEXP)
+```
+
+
+
