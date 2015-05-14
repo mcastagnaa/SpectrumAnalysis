@@ -27,6 +27,7 @@ library(PerformanceAnalytics)
 library(scales)
 library(reshape2)
 library(ggplot2)
+library(scatterplot3d)
 ```
 
 # The dataset
@@ -203,7 +204,8 @@ ggplot(data = FundExpTypeSet[complete.cases(FundExpTypeSet),] ,
   geom_area(aes(colour = Typ, fill = Typ), position = 'stack') +
   scale_fill_brewer(palette="Greens") + 
   scale_y_continuous(labels = percent) +
-  facet_wrap(~ Fund)
+  facet_wrap(~ Fund) + 
+  theme(axis.text=element_text(size=7))
 ```
 \end{landscape}
 
@@ -214,15 +216,16 @@ RegSet$VixCut <- cut(RegSet$VIX, 3)
 
 ggplot(RetSdRollMelt, aes(x=variable, y = SdRet)) +
   geom_boxplot() + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
-  xlab("Funds")
+  scale_y_continuous(labels = percent) +
+  theme(axis.text.x=element_blank(),
+        axis.title.x=element_blank())
 ```
 
 ```{r EquityFundsCheck, echo=FALSE, warning=FALSE, fig.align='center'}
 ggplot(ExpRollMelt, aes(x=variable, y = Exposure)) +
-  geom_boxplot() + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
-  xlab("Funds")
+  geom_boxplot() +
+  scale_y_continuous(labels = percent) +
+  theme(axis.title.x=element_blank())
 ```
 
 
@@ -263,7 +266,7 @@ ggplot(RegSet, aes(x=Exposure, y = SdRet
 
 Effectively three different lines can be drawn:
 
-```{r VIXSetsplitReg, echo=FALSE, warning=FALSE}
+```{r VIXSetsplitReg, echo=FALSE, warning=FALSE, fig.align='center'}
 ggplot(RegSet, aes(x=Exposure, y = SdRet
                    , colour = factor(VixCut))) + 
   geom_smooth(method="lm") + 
@@ -276,17 +279,88 @@ Running again a linear regression and adding the VIX level as explanatory variab
 
 ```{r VIXLm, echo=FALSE, warning=FALSE, results='markup'}
 SDonEXPVix <- lm(SdRet ~ Exposure + VIX, data = RegSet)
-summary(SDonEXP)
+summary(SDonEXPVix)
+```
+
+Graphically:
+```{r VIXRegChart, echo=FALSE, warning=FALSE, fig.align='center', fig.width=6, fig.height=5}
+scatterplot3d(RegSet$VIX,RegSet$Exposure,RegSet$SdRet, 
+              xlab = "VIX level", ylab = "Exposure level", zlab = "St.Dev of returns", box = TRUE, cex.symbols = 0.5, cex.axis = 0.5, cex.lab = 0.75)
+```
+
+Which means (also considering the much improved fit):
+\begin{enumerate}
+  \item \textit{coeteris paribus} if we rise the exposure to equity funds by 0.1 (e.g. going from 20\% to 30\%) the resulting daily volatility will increase by `r paste0(round(SDonEXPVix[[1]][2]*0.1*10000,1), "bps")`;
+  \item \textit{coeteris paribus} if the market volatility rises by 0.01 (e.g. going from 15\% to 16\%) the resulting daily volatility of the fund will increase by `r paste0(round(SDonEXPVix[[1]][3]*0.01*10000,1), "bps")`
+\end{enumerate}
+
+A different way to see that is by slicing the volatility levels in N sets by cutting the different observations. Using the same cuts we used in the chart with the three different regressions (N = 3) and labeling them as "low", "mid" and "hi" volatility we get this regression:
+
+```{r VIXCutLm, echo=FALSE, warning=FALSE, results='markup'}
+SDonEXPVixC <- lm(SdRet ~ Exposure + VixCut, data = RegSet)
+summary(SDonEXPVixC)
+```
+
+which effectively provides you with the "jump" in the standard deviation of returns because of changing status in the market volatility.
+
+We can say based on this that:
+\begin{enumerate}
+  \item \textit{coeteris paribus} if we rise the exposure to equity funds by 0.1 (e.g. going from 20\% to 30\%) the resulting daily volatility will increase by `r paste0(round(SDonEXPVixC[[1]][2]*0.1*10000,1), "bps")`;
+  \item \textit{coeteris paribus} if the market volatility rises from "low" to "mid" the resulting daily volatility of the fund will increase by `r paste0(round(SDonEXPVixC[[1]][3]*10000,1), "bps")`
+  \item \textit{coeteris paribus} if the market volatility rises from "low" to "hi" the resulting daily volatility of the fund will increase by `r paste0(round(SDonEXPVixC[[1]][4]*10000,1), "bps")`
+\end{enumerate}
+
+There is, effectively, a more direct way to illustrate how powerful the allocation to equity funds is for the realized volatility of those funds. 
+By analysing the contribution to the expected volatility (using marginal VaR) we can describe that with \textbf{panel 2}. While in exposure terms the allocation to other sectors is visible, it almost disappears in risk terms\footnote{The last few months need investigation given that the risk associated with real estate and other types seems to vanish without any easy explanation!}.
+
+\begin{landscape}
+\textbf{Panel 2: Spectrum funds - risk contribution by fund type}
+```{r RASpectrum, echo=FALSE, fig.align='center', fig.width=9, fig.height=6}
+FundExpTypeSet <- SpecExpSet[SpecExpSet$Class == "ByFundType" &
+                        SpecExpSet$Calc == "RiskShare" & 
+                        SpecExpSet$DetsDate != as.Date("2014-12-12"), 
+                      c("DetsDate", "Val", "Fund", "Typ")]
+rownames(FundExpTypeSet) <- NULL
+
+ggplot(data = FundExpTypeSet[complete.cases(FundExpTypeSet),] , 
+       aes(DetsDate,  Val)) + 
+  geom_area(aes(colour = Typ, fill = Typ), position = 'stack') +
+  scale_fill_brewer(palette="Greens") + 
+  scale_y_continuous(labels = percent) +
+  facet_wrap(~ Fund) + 
+  theme(axis.text=element_text(size=7))
+```
+\end{landscape}
+
+
+# Where to now?
+
+It was discussed several times during the QIC the potential issue around the Spectrum range realized volatility not being aligned with what it was promised to the clients. This seems to be of interest for the specialized press as well as you can see \href{http://www.fundweb.co.uk/news-and-analysis/multi-manager/old-mutual-risk-targeted-spectrum-range-undershoots-volatility-and-returns/2019026.article}{here}
+\footnote{http://www.fundweb.co.uk/news-and-analysis/multi-manager/old-mutual-risk-targeted-spectrum-range-undershoots-volatility-and-returns/2019026.article} as an example.
+
+The same article provides an idea of how big the undershoot is. Using the mid point of the target volatility we have this measure.
+
+```{r echo=FALSE}
+PeriodPast <- (as.Date("2014/12/31")-as.Date("2008/04/28"))/365
+PeriodLeft <- (as.Date("2018/04/28")-as.Date("2014/12/31"))/365
+
+SpecTgtVol <- data.frame(Fund = c("Spec3", "Spec4","Spec5",
+                                  "Spec6","Spec7","Spec8"),
+                         Min = c(0.0575, 0.0786, 0.0957, 0.1129, 0.13, 0.1472),
+                         Max = c(0.0785, 0.0956, 0.1128, 0.1299, 0.1471, 0.1643),
+                         SIDec14 = c(0.0496, 0.0621, 0.0758, 0.0897, 0.1049, 0.1233))
+rownames(SpecTgtVol) <- SpecTgtVol$Fund
+
+```
+```{r}
+as.data.frame(
+  with(SpecTgtVol,
+     SIDec14 - (Min + (Max-Min)/2))
+  )
 ```
 
 
-```{r VIXLm, echo=FALSE, warning=FALSE, results='markup'}
-SDonEXPVixC <- lm(SdRet ~ Exposure + VIXcut, data = RegSet)
-summary(SDonEXP)
-```
 
+Considering that the target is "promised" over the 10y periods, adding that the inception date to end of December 2014 where this data are considered\footnote{It must be added the the realized volatility might well be higher than what would otherwise be because of the swinging prices.} covers `r paste(round(PeriodPast,1),"years")`, we can calculate what the needed level of volatility to the end of the decade should be in order to match the objective.
 
-```
-http://www.fundweb.co.uk/news-and-analysis/multi-manager/old-mutual-risk-targeted-spectrum-range-undershoots-volatility-and-returns/2019026.article
-```
 
