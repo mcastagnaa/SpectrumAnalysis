@@ -209,7 +209,7 @@ ggplot(data = FundExpTypeSet[complete.cases(FundExpTypeSet),] ,
 
 Running boxplots reveals that there are no particular outliers for the rolling volatility observations and the Equity funds exposure ones. 
 
-```{r VolatilityCheck, echo=FALSE, warning=FALSE}
+```{r VolatilityCheck, echo=FALSE, warning=FALSE, fig.align='center'}
 RegSet$VixCut <- cut(RegSet$VIX, 3)
 
 ggplot(RetSdRollMelt, aes(x=variable, y = SdRet)) +
@@ -218,7 +218,7 @@ ggplot(RetSdRollMelt, aes(x=variable, y = SdRet)) +
   xlab("Funds")
 ```
 
-```{r EquityFundsCheck, echo=FALSE, warning=FALSE}
+```{r EquityFundsCheck, echo=FALSE, warning=FALSE, fig.align='center'}
 ggplot(ExpRollMelt, aes(x=variable, y = Exposure)) +
   geom_boxplot() + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) +
@@ -229,7 +229,7 @@ ggplot(ExpRollMelt, aes(x=variable, y = Exposure)) +
 # Analysis
 Without adding any state variable we have immediately a pretty good idea about what is going on:
 
-```{r plainLm, echo=FALSE, warning=FALSE, results='markup'}
+```{r plainLm, echo=FALSE, warning=FALSE, results='markup', fig.align='center'}
 SDonEXP <- lm(SdRet ~ Exposure, data = RegSet)
 summary(SDonEXP)
 
@@ -238,7 +238,7 @@ What we have is that regressing the whole Spectrum range volatility on the equit
 
 This is the relevant graphical representation.
 
-```{r plainLmChart, echo=FALSE, warning=FALSE}
+```{r plainLmChart, echo=FALSE, warning=FALSE, fig.align='center'}
 ggplot(RegSet, aes(x=Exposure, y = SdRet)) + 
   geom_smooth(method="lm") + 
   geom_point(shape=1) + 
@@ -251,7 +251,7 @@ What the regression results are telling us is that if we rise the allocation to 
 It is fairly obvious to think that there is also a market variable that performs a powerful effect on the resulting fund volatility. Higher market volatility will lead \textit{coeteris paribus} to a higher fund volatility.
 This is immediately visible if we split the sample by three different level of the VIX index:
 
-```{r VIXSetsplit, echo=FALSE, warning=FALSE}
+```{r VIXSetsplit, echo=FALSE, warning=FALSE, fig.align='center'}
 ggplot(RegSet, aes(x=Exposure, y = SdRet 
                    , colour = factor(VixCut)
        )) + 
@@ -275,9 +275,18 @@ ggplot(RegSet, aes(x=Exposure, y = SdRet
 Running again a linear regression and adding the VIX level as explanatory variable greately enhance the amount of Spectrum volatility of volatility explained:
 
 ```{r VIXLm, echo=FALSE, warning=FALSE, results='markup'}
-SDonEXP <- lm(SdRet ~ Exposure + VIX, data = RegSet)
+SDonEXPVix <- lm(SdRet ~ Exposure + VIX, data = RegSet)
 summary(SDonEXP)
 ```
 
 
+```{r VIXLm, echo=FALSE, warning=FALSE, results='markup'}
+SDonEXPVixC <- lm(SdRet ~ Exposure + VIXcut, data = RegSet)
+summary(SDonEXP)
+```
+
+
+```
+http://www.fundweb.co.uk/news-and-analysis/multi-manager/old-mutual-risk-targeted-spectrum-range-undershoots-volatility-and-returns/2019026.article
+```
 
