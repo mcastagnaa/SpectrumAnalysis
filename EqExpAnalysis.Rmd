@@ -1,6 +1,5 @@
 ---
-title: "Spectrum range volatility  
-and exposure analysis"
+title: "Spectrum range: volatility and exposure analysis"
 author: "Matteo Castagna"
 date: "May 2015"
 output:
@@ -12,12 +11,14 @@ output:
 ---
 
 # Introduction
-This added work explores the relationship between the differnt funds allocation in the Spectrum range and the volatility of returns computed using the mid price official quote.
-The underlying dataset is the same as the previous job; the funds type allocation is collected from the Vivaldi SQL database directly via a standard query over an ODBC channel. 
+This added work explores the relationship between the funds-types allocation for the Spectrum range and the volatility of returns computed using the mid price official quote.
+
+The underlying dataset is the same as the previous job; the funds-type allocation is collected from the Vivaldi SQL database directly via a standard query over an ODBC channel. 
 In order to perform those queries reading rights on the Vivaldi database are needed.
 The resulting dataset is available as a \textit{.Rda} file with all the other relevant resources.
 
 The raw data and all the relevant R scripts are published on <http://www.github.com/mcastagnaa/SpectrumAnalysis> and available there for replication to anybody interested.
+
 This is an R Markdown document\footnote{Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.}. 
 
 The relevant R packages used (with all the relevant dependencies) are:
@@ -28,13 +29,14 @@ library(scales)
 library(reshape2)
 library(ggplot2)
 library(scatterplot3d)
+library(plyr)
 ```
 
 # The dataset
 Spectrum funds prices are taken as delivered by Citi to OMGI. The Spectrum prices are available by class on a Bid/Mid/Offer basis. For this exercise the Mid price was used for the OA class.
 Using a specific quote instead of the official one (where the quote might be subject to swings between bid and offer) seems to be the logical option in order to avoid any excess volatility; the OA class was used given it has the longest time series (TS).
 
-From the prices TS the returns TSs are built for the Spectrum funds using the following sintax (i.e. computing simple returns):
+From the prices TS the returns TSs are built using the following syntax (i.e. computing simple returns):
 
 ```r
 ########################################
@@ -42,9 +44,10 @@ Returns - pseudo code
 ########################################
 
 FundPRes$SpecXRet <- c(NA, FundPRes$Mid.SKSPECX[2:n]/FundPRes$Mid.SKSPECX[1:n-1]-1)
-... # where X is 3:8
+... 
+# where X is 3:8
 ```
-The Spectrum funds returns and the VIX index levels\footnote{This is actually a difference vs. the same data set which was used for the previous work. The VIX index levels (a measure of the S\&P implied volatility for each day) are sourced from Bloomberg - the relevant .csv file is part of the resources.} are part of the data frame saved with name \textit{CombByDate.Rda}.
+The Spectrum funds returns and the VIX index levels\footnote{This is actually a difference vs. the same data set which was used for the previous work. The VIX index levels (a measure of the S\&P implied volatility on each given day) are sourced from Bloomberg - the relevant .csv file is part of the resources.} are part of the data frame saved with name \textit{CombByDate.Rda}.
 
 The relevant funds allocation and risk allocations are obtained using the following code which stores the relevant information in a data frame saved with name \textit{SpecExpSet.Rda}.
 
@@ -70,7 +73,7 @@ save(SpecExpSet, file = "SpecExpSet.Rda")
 ```
 
 The two dataset are then combined to generate the data frame used for the rest of this analysis.
-```{r CreateRegSet, echo=FALSE, results ='markup'}
+```{r CreateRegSet, echo=FALSE}
 rm(list =ls(all=TRUE))
 
 load("SpecExpSet.Rda")
@@ -179,16 +182,20 @@ VIXdf$Date <- as.Date(VIXdf$Date)
 
 RegSet <- merge(ExpRollMelt, RetSdRollMelt, by = c("Date", "variable"))
 RegSet <- merge(RegSet, VIXdf, by = "Date")
+RegSet$VixCut <- cut(RegSet$VIX, 3)
+RegSet$VixCutLab <- cut(RegSet$VIX, 3, labels = c("low", "mid", "hi"))
+RegSet$VixCutCol <- cut(RegSet$VIX, 3, labels = c(3, 4, 2))
 ```
+
 Couple of notes on the dataset just created:
 \begin{enumerate}
   \item The asset class for the funds held in each Spectrum fund is the one provided by Bloomberg;
   \item Volatility of the Spectrum funds returns is calculated using `r RollingObs` rolling observations of daily returns (without annualizing);
-  \item The asset allocation and the VIX level is averaged over the same number of observations
+  \item The asset allocation and the VIX level are averaged over the same number of observations
 \end{enumerate}
 
 # Data inspection
-The relevant asset allocation for the different funds can be described by \textbf{panel 1}. It's quite clear that it is pretty much constant over the period observed. The relevant differences are concentrated in the percentage of equity funds and debt funds.
+The relevant asset allocation for the different funds can be described by \textbf{panel 1}. It's quite clear that it is pretty much constant over the period observed. The relevant differences, across the range, are concentrated in the percentage of equity funds and debt funds.
 
 \begin{landscape}
 \textbf{Panel 1: Spectrum funds - fund type allocation}
@@ -209,19 +216,16 @@ ggplot(data = FundExpTypeSet[complete.cases(FundExpTypeSet),] ,
 ```
 \end{landscape}
 
-Running boxplots reveals that there are no particular outliers for the rolling volatility observations and the Equity funds exposure ones. 
+Running boxplot charts reveals that there are no particular outliers for the rolling volatility observations and the Equity funds exposure ones. 
 
-```{r VolatilityCheck, echo=FALSE, warning=FALSE, fig.align='center'}
-RegSet$VixCut <- cut(RegSet$VIX, 3)
-
+```{r VolatilityCheck, echo=FALSE, warning=FALSE, fig.align='center', fig.width=5, fig.height=4}
 ggplot(RetSdRollMelt, aes(x=variable, y = SdRet)) +
   geom_boxplot() + 
   scale_y_continuous(labels = percent) +
   theme(axis.text.x=element_blank(),
         axis.title.x=element_blank())
 ```
-
-```{r EquityFundsCheck, echo=FALSE, warning=FALSE, fig.align='center'}
+```{r EquityFundsCheck, echo=FALSE, warning=FALSE, fig.align='center', fig.width=5, fig.height=4}
 ggplot(ExpRollMelt, aes(x=variable, y = Exposure)) +
   geom_boxplot() +
   scale_y_continuous(labels = percent) +
@@ -237,11 +241,12 @@ SDonEXP <- lm(SdRet ~ Exposure, data = RegSet)
 summary(SDonEXP)
 
 ```
-What we have is that regressing the whole Spectrum range volatility on the equity funds exposure provides a very decent fit.
+
+Regressing the whole Spectrum range volatility on the equity funds exposure provides a very decent fit.
 
 This is the relevant graphical representation.
 
-```{r plainLmChart, echo=FALSE, warning=FALSE, fig.align='center'}
+```{r plainLmChart, echo=FALSE, warning=FALSE, fig.align='center', fig.width=6, fig.height=4}
 ggplot(RegSet, aes(x=Exposure, y = SdRet)) + 
   geom_smooth(method="lm") + 
   geom_point(shape=1) + 
@@ -249,22 +254,22 @@ ggplot(RegSet, aes(x=Exposure, y = SdRet)) +
   ggtitle(paste("Rolling", RollingObs, "observations"))
 ```
 
-What the regression results are telling us is that if we rise the allocation to equity funds by 0.1 (e.g. from 20% to 30%) the resulting standard deviation of returns increases by `r paste0(round(SDonEXP[[1]][2]*0.1*10000,1), "bps")` (daily).
+What the regression results are telling us is: if we rise the allocation to equity funds by 0.1 (e.g. from 20% to 30%) the resulting standard deviation of daily returns increases by `r paste0(round(SDonEXP[[1]][2]*0.1*10000,1), "bps")`.
 
 It is fairly obvious to think that there is also a market variable that performs a powerful effect on the resulting fund volatility. Higher market volatility will lead \textit{coeteris paribus} to a higher fund volatility.
-This is immediately visible if we split the sample by three different level of the VIX index:
+This is immediately visible if we split the sample by three different level of the VIX index.
 
 ```{r VIXSetsplit, echo=FALSE, warning=FALSE, fig.align='center'}
-ggplot(RegSet, aes(x=Exposure, y = SdRet 
-                   , colour = factor(VixCut)
-       )) + 
-  geom_point(shape=1) +
-  labs(x = "Eq.Funds exposure", y = "StDev of returns") +
-  ggtitle(paste("Rolling", RollingObs, "observations"))
+# ggplot(RegSet, aes(x=Exposure, y = SdRet 
+#                    , colour = factor(VixCut)
+#        )) + 
+#   geom_point(shape=1) +
+#   labs(x = "Eq.Funds exposure", y = "StDev of returns") +
+#   ggtitle(paste("Rolling", RollingObs, "observations"))
   
 ```
 
-Effectively three different lines can be drawn:
+Effectively three different regression lines can be drawn:
 
 ```{r VIXSetsplitReg, echo=FALSE, warning=FALSE, fig.align='center'}
 ggplot(RegSet, aes(x=Exposure, y = SdRet
@@ -275,7 +280,7 @@ ggplot(RegSet, aes(x=Exposure, y = SdRet
   ggtitle(paste("Rolling", RollingObs, "observations"))
 ```
 
-Running again a linear regression and adding the VIX level as explanatory variable greately enhance the amount of Spectrum volatility of volatility explained:
+Running again a linear regression and adding the VIX index as an explanatory variable greatly enhance the amount of Spectrum volatility of volatility explained by the regressors:
 
 ```{r VIXLm, echo=FALSE, warning=FALSE, results='markup'}
 SDonEXPVix <- lm(SdRet ~ Exposure + VIX, data = RegSet)
@@ -283,21 +288,26 @@ summary(SDonEXPVix)
 ```
 
 Graphically:
-```{r VIXRegChart, echo=FALSE, warning=FALSE, fig.align='center', fig.width=6, fig.height=5}
+```{r VIXRegChart, echo=FALSE, warning=FALSE, fig.align='center', fig.width=6, fig.height=5.5}
 scatterplot3d(RegSet$VIX,RegSet$Exposure,RegSet$SdRet, 
-              xlab = "VIX level", ylab = "Exposure level", zlab = "St.Dev of returns", box = TRUE, cex.symbols = 0.5, cex.axis = 0.5, cex.lab = 0.75)
+              xlab = "VIX level", ylab = "Exposure level", 
+              zlab = "St.Dev of returns", box = TRUE, angle=60, 
+              cex.symbols = 0.5, cex.axis = 0.5, cex.lab = 0.75,
+              color = RegSet$VixCutCol)
+#sc3d$plane3d(SDonEXPVix)
+
 ```
 
-Which means (also considering the much improved fit):
+The regression results mean (on top of providing a much improved fit):
 \begin{enumerate}
   \item \textit{coeteris paribus} if we rise the exposure to equity funds by 0.1 (e.g. going from 20\% to 30\%) the resulting daily volatility will increase by `r paste0(round(SDonEXPVix[[1]][2]*0.1*10000,1), "bps")`;
   \item \textit{coeteris paribus} if the market volatility rises by 0.01 (e.g. going from 15\% to 16\%) the resulting daily volatility of the fund will increase by `r paste0(round(SDonEXPVix[[1]][3]*0.01*10000,1), "bps")`
 \end{enumerate}
 
-A different way to see that is by slicing the volatility levels in N sets by cutting the different observations. Using the same cuts we used in the chart with the three different regressions (N = 3) and labeling them as "low", "mid" and "hi" volatility we get this regression:
+A different way to see that is by slicing the volatility levels in N sets by cutting the different observations. Using the same cuts we used in the chart with the three different regressions (N = 3) and labelling them as "low", "mid" and "hi" volatility we get this regression:
 
 ```{r VIXCutLm, echo=FALSE, warning=FALSE, results='markup'}
-SDonEXPVixC <- lm(SdRet ~ Exposure + VixCut, data = RegSet)
+SDonEXPVixC <- lm(SdRet ~ Exposure + VixCutLab, data = RegSet)
 summary(SDonEXPVixC)
 ```
 
@@ -310,8 +320,12 @@ We can say based on this that:
   \item \textit{coeteris paribus} if the market volatility rises from "low" to "hi" the resulting daily volatility of the fund will increase by `r paste0(round(SDonEXPVixC[[1]][4]*10000,1), "bps")`
 \end{enumerate}
 
+# Risk allocation from exposure allocation
 There is, effectively, a more direct way to illustrate how powerful the allocation to equity funds is for the realized volatility of those funds. 
-By analysing the contribution to the expected volatility (using marginal VaR) we can describe that with \textbf{panel 2}. While in exposure terms the allocation to other sectors is visible, it almost disappears in risk terms\footnote{The last few months need investigation given that the risk associated with real estate and other types seems to vanish without any easy explanation!}.
+
+By analysing the contribution to the expected volatility (using marginal VaR) we can describe that via \textbf{panel 2}. 
+
+While in \underline{exposure terms} the allocation to other sectors is visible, it almost disappears in \underline{risk terms}\footnote{The last few months need investigation given that the risk associated with real estate and other types seems to vanish without any easy explanation!}.
 
 \begin{landscape}
 \textbf{Panel 2: Spectrum funds - risk contribution by fund type}
@@ -335,14 +349,16 @@ ggplot(data = FundExpTypeSet[complete.cases(FundExpTypeSet),] ,
 
 # Where to now?
 
-It was discussed several times during the QIC the potential issue around the Spectrum range realized volatility not being aligned with what it was promised to the clients. This seems to be of interest for the specialized press as well as you can see \href{http://www.fundweb.co.uk/news-and-analysis/multi-manager/old-mutual-risk-targeted-spectrum-range-undershoots-volatility-and-returns/2019026.article}{here}
+It was discussed several times during the QIC the potential issue around the Spectrum range realized volatility not being aligned with what it was promised to the clients. 
+
+This seems to be of interest for the specialized press as well as you can see \href{http://www.fundweb.co.uk/news-and-analysis/multi-manager/old-mutual-risk-targeted-spectrum-range-undershoots-volatility-and-returns/2019026.article}{here}
 \footnote{http://www.fundweb.co.uk/news-and-analysis/multi-manager/old-mutual-risk-targeted-spectrum-range-undershoots-volatility-and-returns/2019026.article} as an example.
 
-The same article provides an idea of how big the undershoot is. Using the mid point of the target volatility we have this measure.
+The same article provides an idea of how big the undershoot is. Using the mid point of the target volatility we can measure (annualized) how much we are away from it (as of end of December 2014, since inception date 28 April 2008).
 
-```{r echo=FALSE}
-PeriodPast <- (as.Date("2014/12/31")-as.Date("2008/04/28"))/365
-PeriodLeft <- (as.Date("2018/04/28")-as.Date("2014/12/31"))/365
+```{r Table1, echo=FALSE}
+PeriodPast <- as.numeric((as.Date("2014/12/31")-as.Date("2008/04/28"))/365)
+PeriodLeft <- as.numeric((as.Date("2018/04/28")-as.Date("2014/12/31"))/365)
 
 SpecTgtVol <- data.frame(Fund = c("Spec3", "Spec4","Spec5",
                                   "Spec6","Spec7","Spec8"),
@@ -351,16 +367,78 @@ SpecTgtVol <- data.frame(Fund = c("Spec3", "Spec4","Spec5",
                          SIDec14 = c(0.0496, 0.0621, 0.0758, 0.0897, 0.1049, 0.1233))
 rownames(SpecTgtVol) <- SpecTgtVol$Fund
 
+SpecTgtVol$Mid <- with(SpecTgtVol,
+                            (Min + (Max-Min)/2))
+
+SpecTgtVol$DistFromMid <- with(SpecTgtVol,
+                            SIDec14 - Mid)
+
+SpecTgtVol$DistFromMidBps <- with(SpecTgtVol,
+                            round(DistFromMid*10000,0))
+
+SpecTgtVol[c("SIDec14", "Mid", "DistFromMid", "DistFromMidBps")]
 ```
-```{r}
-as.data.frame(
-  with(SpecTgtVol,
-     SIDec14 - (Min + (Max-Min)/2))
-  )
+
+Based on that measure and the amount of time left for the end of the first decade\footnote{The volatility target is "promised" over a ten years periods} of the Spectrum life (`r paste(round(PeriodLeft, 1), "years")`) and using the results of the regression, we can estimate how bigger the allocation to equity needs to be or how much more volatility in the equity market we need in order to achieve the target.
+
+The following table gives an idea of how much realized volatility we need in order to achieve the target mid-point.
+
+```{r Table2, echo=FALSE}
+SpecTgtVol$NextPerVol <- with(SpecTgtVol,
+                              sqrt((10*Mid^2 - PeriodPast * SIDec14^2)/PeriodLeft)
+                              )
+SpecTgtVol$JumpNeeded <-  with(SpecTgtVol,
+                              round((NextPerVol-SIDec14)*10000,0)
+                              )
+
+SpecTgtVol[c("SIDec14", "Mid", "NextPerVol", "JumpNeeded")]
 ```
 
+The next period volatility (NextPerVol column) has been calculated, in approximate format assuming an average of daily returns equal to zero, as:
 
+\[SD(b_i) = \sqrt{\frac{(n+m)*SD^2(tgt) - n * SD^2(a_i)}{m}}\]
 
-Considering that the target is "promised" over the 10y periods, adding that the inception date to end of December 2014 where this data are considered\footnote{It must be added the the realized volatility might well be higher than what would otherwise be because of the swinging prices.} covers `r paste(round(PeriodPast,1),"years")`, we can calculate what the needed level of volatility to the end of the decade should be in order to match the objective.
+Where $SD(b_i)$ is the volatility of the future period $m$ needed to achieve the overall volatility of $SD(tgt)$ after an initial period $n$ volatility of $SD(a_i)$.
 
+Annualizing the previous regression results, we know that an increase by 10% in equity allocation leads to an increase of realized volatility (based on non-swung prices) of `r paste0(round(SDonEXPVix[[1]][2]*sqrt(252)*0.1*10000,1), "bps")`.
+We have to be mindful of the limitation in terms of how much equity we can place in order to stay in the selected universe\footnote{The Spectrum funds are in the unassigned IMA sector but the objective is to beat a relevant IMA Mix sector on volatility-adjusted basis}.
 
+The table below provides the average allocation to the equity funds for the different products:
+```{r colmeans, echo=FALSE}
+round(colMeans(FundsExp[,-1], na.rm=TRUE),2)
+```
+
+Alternatively we can simply hope to have a higher level of equity market volatility (proxy-ed by the S&P volatility).
+In that respect, again using the regression results, we can say that we need a jump worth `r paste0(round((0.05/sqrt(252))/SDonEXPVix[[1]][3]*100,1), "%")` for the VIX in order to get a 500bps rise in the annualized volatility of the fund to give an example.
+
+We need to be mindful that the realized volatility for the client is enhanced by the swing price convention: there is potentially a big difference between the volatility reported in the press article and the most recent three years\footnote{The since inception data contain the very volatile period between 2008 and 2009 as an example} set we used to calculate the volatility of the funds for the previous exercise, but the difference is quite big as you can appreciate from the table below:
+
+```{r SIvs3y, echo=FALSE}
+colnames(Returns) <- c("Date", "Spec3", "Spec4", "Spec5",
+                       "Spec6", "Spec7", "Spec8", "VIX")
+SpecRetsMolten <- melt(Returns[,-8], id.vars = "Date")
+SpecVol <- ddply(SpecRetsMolten, ~ variable, colwise(sd))
+colnames(SpecVol) <- c("Fund", "Date", "StDev3yAnn")
+
+SpecVol$StDev3yAnn <- SpecVol$StDev3yAnn * sqrt(252)
+SpecVol <- subset(SpecVol, select = c("Fund", "StDev3yAnn"))
+
+SpecTgtVol <- merge(SpecTgtVol, SpecVol, by = "Fund")
+
+SpecTgtVol[c("Fund","SIDec14", "StDev3yAnn")]
+
+```
+
+# Conclusions
+This work tries to provide a clear idea about how important is the equity portion of the Spectrum portfolios for their realized volatility of returns.
+
+While the exposure is limited, the share of the overall risk is eclipsing any other fund-type held.
+
+A simple regression model shows the relationship between the realized volatility of returns and the equity-funds exposure and the generic level of market volatility.
+Those results can be used to consider how the target volatility for the Spectrum range can be achieved.
+
+The realized volatility over the last `r round(PeriodPast,1)` years (to end of December 2014) is significantly below the promised range; this work measures how much the realized volatility needs to rise in what is left for the first decade of life for Spectrum in order to achieve the objective. 
+
+Rising the equity allocation or hoping for a more volatile markets (or a combination of the two) are the obvious options we seem to have; unfortunately this is not an easy one to pull off successfully given that, typically, a sudden fall in market prices is associated to a higher volatility: a circumstance where you clearly do not want to have a higher allocation to equities.
+
+On the other hand relying on "hope" sounds as a unpalatable option as well.
